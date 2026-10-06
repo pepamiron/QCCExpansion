@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QCC Expansión Online 2026</title>
+<title>QCC Expansión Online 2027</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;font-size:13px;background:#f5f5f3;color:#1a1a18;padding:1.2rem;overflow-y:scroll}
@@ -82,7 +82,7 @@ tr.cp-match td{background:#fffbe6!important}
 </head>
 <body>
 
-<h1>QCC Expansión Tiendas Mercadona Online 2026</h1>
+<h1>QCC Expansión Tiendas Mercadona Online 2027</h1>
 
 <div class="top-bar">
   <div class="csv-status" id="csvStatus">Cargando datos...</div>
@@ -613,7 +613,7 @@ function exportCSV() {
   const header = ['zona_tiendas','num_centro','denominacion','poblacion','provincia','escenario','cps_que_servimos','tiendas_que_dejan_de_servir_tc','fecha_1er_dia_formacion','fecha_cierre_servicio','fecha_1er_servicio'];
   const rows = allRows.map(r => { const key=rowKey(r),out=[...r]; out[7]=editableData[key]?.tc||''; out[8]=editableData[key]?.formacion||''; return out.map(v=>`"${(v||'').replace(/"/g,'""')}"`).join(','); });
   const blob = new Blob([header.join(',')+'\n'+rows.join('\n')],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='QCC_expansion_online_2026.csv'; a.click();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='QCC_expansion_online_2027.csv'; a.click();
 }
 
 function exportXLSX() {
@@ -702,8 +702,8 @@ function exportXLSX() {
   });
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'QCC 2026');
-  XLSX.writeFile(wb, 'QCC_expansion_online_2026.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, 'QCC 2027');
+  XLSX.writeFile(wb, 'QCC_expansion_online_2027.xlsx');
 }
 
 function showDropOverlay() { document.getElementById('dropOverlay').classList.add('show'); }
