@@ -82,7 +82,7 @@ tr.cp-match td{background:#fffbe6!important}
 </head>
 <body>
 
-<h1>QCC Expansión Tiendas Mercadona Online 2027</h1>
+<h1 id="titulo">QCC Expansión Tiendas Mercadona Online 2027</h1>
 
 <div class="top-bar">
   <div class="csv-status" id="csvStatus">Cargando datos...</div>
@@ -171,6 +171,10 @@ tr.cp-match td{background:#fffbe6!important}
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script>
+// CAMBIAR SOLO ESTA LÍNEA CADA AÑO
+const ANIO = 2027;
+document.title = 'QCC Expansión Online ' + ANIO;
+document.getElementById('titulo').textContent = 'QCC Expansión Tiendas Mercadona Online ' + ANIO;
 const JSONBIN_KEY_DEFAULT = '$2a$10$ZefKKCnShGfeqJ64RNbLvenbqRngR8KVQBmGkPmaZ6oYqrkNf/XeS';
 const JSONBIN_EDITS_BIN = '69e78902aaba882197218832';
 const JSONBIN_EDITS_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_EDITS_BIN}`;
@@ -613,7 +617,7 @@ function exportCSV() {
   const header = ['zona_tiendas','num_centro','denominacion','poblacion','provincia','escenario','cps_que_servimos','tiendas_que_dejan_de_servir_tc','fecha_1er_dia_formacion','fecha_cierre_servicio','fecha_1er_servicio'];
   const rows = allRows.map(r => { const key=rowKey(r),out=[...r]; out[7]=editableData[key]?.tc||''; out[8]=editableData[key]?.formacion||''; return out.map(v=>`"${(v||'').replace(/"/g,'""')}"`).join(','); });
   const blob = new Blob([header.join(',')+'\n'+rows.join('\n')],{type:'text/csv;charset=utf-8;'});
-  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='QCC_expansion_online_2027.csv'; a.click();
+  const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='QCC_expansion_online_'+ANIO+'.csv'; a.click();
 }
 
 function exportXLSX() {
@@ -702,8 +706,8 @@ function exportXLSX() {
   });
 
   const wb = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(wb, ws, 'QCC 2027');
-  XLSX.writeFile(wb, 'QCC_expansion_online_2027.xlsx');
+  XLSX.utils.book_append_sheet(wb, ws, 'QCC '+ANIO);
+  XLSX.writeFile(wb, 'QCC_expansion_online_'+ANIO+'.xlsx');
 }
 
 function showDropOverlay() { document.getElementById('dropOverlay').classList.add('show'); }
