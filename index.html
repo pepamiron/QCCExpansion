@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>QCC Expansión Online 2027</title>
+<title>QCC Expansión Online</title>
 <style>
 *{box-sizing:border-box;margin:0;padding:0}
 body{font-family:system-ui,sans-serif;font-size:13px;background:#f5f5f3;color:#1a1a18;padding:1.2rem;overflow-y:scroll}
@@ -82,7 +82,7 @@ tr.cp-match td{background:#fffbe6!important}
 </head>
 <body>
 
-<h1 id="titulo">QCC Expansión Tiendas Mercadona Online 2027</h1>
+<h1>QCC Expansión Tiendas Mercadona Online</h1>
 
 <div class="top-bar">
   <div class="csv-status" id="csvStatus">Cargando datos...</div>
@@ -171,10 +171,8 @@ tr.cp-match td{background:#fffbe6!important}
 
 <script src="https://cdn.jsdelivr.net/npm/xlsx-js-style@1.2.0/dist/xlsx.bundle.js"></script>
 <script>
-// CAMBIAR SOLO ESTA LÍNEA CADA AÑO
+// Año que aparece en los nombres de los archivos exportados (CSV, Excel y hoja). Cambiar solo esta línea cada año.
 const ANIO = 2027;
-document.title = 'QCC Expansión Online ' + ANIO;
-document.getElementById('titulo').textContent = 'QCC Expansión Tiendas Mercadona Online ' + ANIO;
 const JSONBIN_KEY_DEFAULT = '$2a$10$ZefKKCnShGfeqJ64RNbLvenbqRngR8KVQBmGkPmaZ6oYqrkNf/XeS';
 const JSONBIN_EDITS_BIN = '69e78902aaba882197218832';
 const JSONBIN_EDITS_URL = `https://api.jsonbin.io/v3/b/${JSONBIN_EDITS_BIN}`;
