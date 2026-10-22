@@ -54,6 +54,11 @@ tr:last-child td{border-bottom:none}
 .editable-cell:focus{outline:2px solid #378ADD;background:#fff;border-radius:4px}
 .editable-cell.empty-cell{color:#bbb;font-style:italic;font-size:11px;white-space:normal}
 .editable-cell.from-qcc{}
+.editable-cell{cursor:default}
+.editable-cell:hover{background:transparent}
+body.edicion-activa .editable-cell{cursor:pointer}
+body.edicion-activa .editable-cell:hover{background:#e8e8e4}
+body.edicion-activa .editable-cell:focus{background:#fff}
 .saved-badge{font-size:11px;color:#27500A;background:#EAF3DE;padding:2px 8px;border-radius:4px;display:none}
 .cps-cell{font-size:11px;line-height:1.5;word-break:keep-all;white-space:normal}
 .cp-highlight{background:#fff59d;border-radius:3px;padding:0 2px;font-weight:600}
@@ -89,6 +94,7 @@ tr.cp-match td{background:#fffbe6!important}
   <span class="sync-status sync-loading" id="syncStatus">Conectando...</span>
   <a class="btn" href="https://metabase.prod.monline/question/32873-qcc-ntc-nsd" target="_blank" rel="noopener" style="text-decoration:none;display:inline-flex;align-items:center">Abrir consulta Metabase ↗</a>
   <button class="btn btn-warn" onclick="showDropOverlay()">Actualizar datos ↑</button>
+  <button class="btn" id="btnEdicion" onclick="toggleEdicion()">🔒 Edición bloqueada</button>
   <button class="btn" onclick="exportCSV()">Exportar CSV</button>
   <button class="btn btn-primary" onclick="exportXLSX()">Exportar XLSX</button>
   <span class="saved-badge" id="saved-badge">Guardado</span>
@@ -223,6 +229,20 @@ const QCC_DATA = {"2129||NTC15||13/2/2026": {"tc": "", "formacion": "3/2/2026"},
 
 let allRows = [];
 let editableData = {};
+let modoEdicion = false;
+const HINT_EDITAR = 'Haz clic para editar';
+
+function toggleEdicion() {
+  modoEdicion = !modoEdicion;
+  document.body.classList.toggle('edicion-activa', modoEdicion);
+  const b = document.getElementById('btnEdicion');
+  b.textContent = modoEdicion ? '🔓 Edición activa' : '🔒 Edición bloqueada';
+  b.classList.toggle('btn-warn', modoEdicion);
+  document.querySelectorAll('.editable-cell').forEach(el => {
+    el.contentEditable = modoEdicion ? 'true' : 'false';
+    if (el.classList.contains('empty-cell')) el.textContent = modoEdicion ? HINT_EDITAR : '';
+  });
+}
 let searchCP = '';
 let saveTimeout = null;
 let sortCol = null;
@@ -515,8 +535,8 @@ function render() {
       <td>${r[0]||''}</td><td><strong>${r[1]||''}</strong></td><td>${r[2]||''}</td>
       <td>${r[3]||''}</td><td>${r[4]||''}</td><td>${badge}</td>
       <td class="cps-cell">${cpsDisplay}</td>
-      <td><span class="editable-cell${tc?'':' empty-cell'}${tcFromQCC?' from-qcc':''}" contenteditable="true" data-key="${key}" data-field="tc" onblur="saveCell(this)" onfocus="clearHint(this)">${tc||'Haz clic para editar'}</span></td>
-      <td><span class="editable-cell${form?'':' empty-cell'}${formFromQCC?' from-qcc':''}" contenteditable="true" data-key="${key}" data-field="formacion" onblur="saveCell(this)" onfocus="clearHint(this)">${form||'Haz clic para editar'}</span></td>
+      <td><span class="editable-cell${tc?'':' empty-cell'}${tcFromQCC?' from-qcc':''}" contenteditable="${modoEdicion}" data-key="${key}" data-field="tc" onblur="saveCell(this)" onfocus="clearHint(this)">${tc||(modoEdicion?HINT_EDITAR:'')}</span></td>
+      <td><span class="editable-cell${form?'':' empty-cell'}${formFromQCC?' from-qcc':''}" contenteditable="${modoEdicion}" data-key="${key}" data-field="formacion" onblur="saveCell(this)" onfocus="clearHint(this)">${form||(modoEdicion?HINT_EDITAR:'')}</span></td>
       <td>${r[9]||''}</td>
       <td>${r[10]||''}</td>
     </tr>`;
@@ -527,12 +547,18 @@ function clearHint(el) { if(el.classList.contains('empty-cell')){ el.textContent
 
 function saveCell(el) {
   const key = el.dataset.key, field = el.dataset.field, val = el.textContent.trim();
+  const prev = (editableData[key] && editableData[key][field]) || '';
+  if (val === prev) {
+    // Sin cambios: no se guarda nada ni se marca como edición manual
+    if (!val) { el.textContent = modoEdicion ? HINT_EDITAR : ''; el.classList.add('empty-cell'); }
+    return;
+  }
   if (!editableData[key]) editableData[key] = {tc:'',formacion:'',src:{}};
   if (!editableData[key].src) editableData[key].src = {};
   editableData[key][field] = val;
   editableData[key].src[field] = 'manual';
   el.classList.remove('from-qcc');
-  if (!val) { el.textContent='Haz clic para editar'; el.classList.add('empty-cell'); } else el.classList.remove('empty-cell');
+  if (!val) { el.textContent=modoEdicion?HINT_EDITAR:''; el.classList.add('empty-cell'); } else el.classList.remove('empty-cell');
   scheduleSave();
 }
 
