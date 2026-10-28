@@ -644,16 +644,83 @@ function exportCSV() {
   const a=document.createElement('a'); a.href=URL.createObjectURL(blob); a.download='QCC_expansion_online_'+ANIO+'.csv'; a.click();
 }
 
+/* ──────────────────────────────────────────────────────────────
+   DISEÑO FIJO DEL EXCEL EXPORTADO
+   Todo lo visual del XLSX está en este bloque: para cambiar fuentes,
+   tamaños, anchos de columna, alturas, colores o textos de la leyenda
+   se toca solo aquí. Los anchos de columna son fijos. La altura de
+   fila es fija (altoFila) y solo crece cuando el texto, sobre todo la
+   lista de CPs, no cabe en las líneas que entran en esa altura.
+   ────────────────────────────────────────────────────────────── */
+const XLSX_DISENO = {
+  fuente: 'Arial', tamano: 11,
+  titulo: 'QCC EXPANSION TIENDAS MERCADONA ONLINE', tituloFuente: 'Calibri', tituloTamano: 24,
+  anchoMargen: 11.43,                       // columna A (vacía, a la izquierda de la tabla)
+  // Anchos de B a L: Zona, Centro, Denominación, Población, Provincia, Tamaño, CPs, TC, Formación, Cierre, 1er servicio
+  anchos: [6.71, 11.29, 28.86, 31.71, 21.57, 32.86, 61.43, 27.14, 22.14, 20, 15.86],
+  altoTitulo: 31.5, altoCabecera: 30, altoFila: 38.25, altoLinea: 14.25, altoLeyenda: 15.75,
+  colorCabecera: 'FFD9D9D9',
+  colores: { amp: 'FFD9EAD3', cierre: 'FFF4CCCC', baja: 'FFFFF2CC', alta: 'FFFFFFFF' },
+  fuenteLeyenda: 12,
+  leyendas: [
+    ['amp',    'Ampliación escenario'],
+    ['cierre', 'Cierre de servicio'],
+    ['baja',   'Reducción de escenario'],
+    ['alta',   'Nuevas implantaciones']
+  ]
+};
+
+/* Anchura aproximada (en píxeles) de un carácter en Arial 11 */
+function xlsxAnchoCaracter(ch) {
+  if (ch >= '0' && ch <= '9') return 8.15;
+  if (ch === ' ' || '.,:;/\\|!'.includes(ch)) return 4.07;
+  if ('()-[]'.includes(ch)) return 4.9;
+  if ("ijl'".includes(ch)) return 3.3;
+  if ('ftI'.includes(ch)) return 4.07;
+  if (ch === 'r') return 4.9;
+  if (ch === 'm' || ch === 'M') return 12.2;
+  if (ch === 'w') return 10.6;
+  if (ch === 'W') return 13.8;
+  if (ch !== ch.toLowerCase()) return 10.4;   // mayúsculas (con o sin tilde)
+  return 8.15;
+}
+
+/* Líneas que ocupa un texto dentro de una columna de ancho fijo (ancho en unidades de Excel) */
+function xlsxLineas(texto, anchoCol) {
+  const disp = anchoCol * 7 - 7;               // píxeles útiles de la celda
+  const ancho = t => { let w = 0; for (const ch of t) w += xlsxAnchoCaracter(ch); return w * 1.03; };  // +3% de seguridad
+  const espacio = ancho(' ');
+  let total = 0;
+  String(texto || '').split('\n').forEach(parrafo => {
+    let lineas = 1, usado = 0;
+    parrafo.split(' ').forEach(pal => {
+      const w = ancho(pal);
+      const extra = w > disp ? Math.ceil(w / disp) - 1 : 0;   // palabra más larga que la celda: se parte
+      if (usado === 0) {
+        lineas += extra; usado = extra ? w - disp * extra : w;
+      } else if (usado + espacio + w <= disp) {
+        usado += espacio + w;
+      } else {
+        lineas += 1 + extra; usado = extra ? w - disp * extra : w;
+      }
+    });
+    total += lineas;
+  });
+  return total;
+}
+
+/* Altura de la fila: la fija, o más si algún texto necesita más líneas */
+function xlsxAltoFila(valores) {
+  const D = XLSX_DISENO;
+  let lineas = 1;
+  valores.forEach((v, c) => { lineas = Math.max(lineas, xlsxLineas(v, D.anchos[c])); });
+  return Math.max(D.altoFila, lineas * D.altoLinea);
+}
+
 function exportXLSX() {
   if (!allRows.length) return alert('No hay datos cargados');
-
-  // Colores de fila (ARGB: FF + hex sin #)
-  const FILL = {
-    amp:    'FFD9EAD3',
-    cierre: 'FFF4CCCC',
-    baja:   'FFFCE5CD',
-    alta:   'FFFFFFFF'
-  };
+  const D = XLSX_DISENO;
+  const NC = 11, C0 = 1;                       // 11 columnas, empezando en B (la A queda de margen)
 
   // Recoger solo las filas actualmente visibles (respeta filtros)
   const mes   = document.getElementById('sel-mes').value;
@@ -680,54 +747,70 @@ function exportXLSX() {
     out[8] = editableData[key]?.formacion || '';
     return out;
   });
+  const n = dataRows.length;
 
-  const wsData = [header, ...dataRows];
-  const ws = XLSX.utils.aoa_to_sheet(wsData);
-  ws['!cols'] = [7,8,20,15,14,22,25,20,13,12,12].map(w=>({wch:w}));
+  const negro = { rgb: 'FF000000' };
+  const bFino  = { style: 'thin',   color: negro };
+  const bPunto = { style: 'dotted', color: negro };
 
-  // Aplicar color de fondo a cada fila de datos
-  visibleRows.forEach((r, i) => {
+  const ws = {};
+  const put = (r, c, v, s) => { ws[XLSX.utils.encode_cell({r, c})] = { v: String(v == null ? '' : v), t: 's', s }; };
+  const rows = [];                              // alturas de fila (índice = fila 0-based)
+
+  // Fila 2: título combinado B2:L2
+  put(1, C0, D.titulo, { font: { name: D.tituloFuente, sz: D.tituloTamano, bold: true }, alignment: { horizontal: 'center' } });
+  rows[1] = { hpt: D.altoTitulo };
+
+  // Fila 4: cabecera
+  header.forEach((h, c) => put(3, C0 + c, h.toUpperCase(), {
+    fill: { patternType: 'solid', fgColor: { rgb: D.colorCabecera } },
+    font: { name: D.fuente, sz: D.tamano, bold: true, color: { rgb: 'FF1A1A18' } },
+    alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+    border: { top: bFino, bottom: bFino, left: bFino, right: bFino }
+  }));
+  rows[3] = { hpt: D.altoCabecera };
+
+  // Filas de datos
+  dataRows.forEach((r, i) => {
     const esc = r[5] || '';
-    const fillKey = !esc ? 'cierre' : esc.startsWith('Ampliación') ? 'amp' : esc.startsWith('Bajada') ? 'baja' : 'alta';
-    const fgColor = FILL[fillKey];
-    const rowIdx = i + 1; // fila 0 = header
-    for (let c = 0; c < 11; c++) {
-      const cellRef = XLSX.utils.encode_cell({r: rowIdx, c});
-      if (!ws[cellRef]) ws[cellRef] = {v:'', t:'s'};
-      ws[cellRef].s = {
-        fill: { patternType: 'solid', fgColor: { rgb: fgColor } },
-        font: { name: 'Arial', sz: 11 },
-        alignment: { wrapText: true, vertical: 'top' }
-      };
+    const tipoFila = !esc ? 'cierre' : esc.startsWith('Ampliación') ? 'amp' : esc.startsWith('Bajada') ? 'baja' : 'alta';
+    const valores = [r[0], r[1], r[2], r[3], r[4], r[5], r[6], r[7], r[8], r[9], r[10]];
+    for (let c = 0; c < NC; c++) {
+      put(4 + i, C0 + c, valores[c], {
+        fill: { patternType: 'solid', fgColor: { rgb: D.colores[tipoFila] } },
+        font: { name: D.fuente, sz: D.tamano },
+        alignment: { horizontal: 'center', vertical: 'center', wrapText: true },
+        border: {
+          top:    i === 0     ? bFino : bPunto,
+          bottom: i === n - 1 ? bFino : bPunto,
+          left:   c === 0      ? bFino : bPunto,
+          right:  c === NC - 1 ? bFino : bPunto
+        }
+      });
     }
+    rows[4 + i] = { hpt: xlsxAltoFila(valores) };
   });
 
-  // Estilo cabecera: mayúsculas, fondo gris, borde línea continua
-  const borderSolid = { style:'thin', color:{ rgb:'FF999999' } };
-  for (let c = 0; c < 11; c++) {
-    const cellRef = XLSX.utils.encode_cell({r:0, c});
-    if (!ws[cellRef]) ws[cellRef] = {v: header[c], t:'s'};
-    ws[cellRef].v = header[c].toUpperCase();
-    ws[cellRef].s = {
-      fill: { patternType:'solid', fgColor:{ rgb:'FFD9D9D9' } },
-      font: { name:'Arial', sz:11, bold:true, color:{ rgb:'FF1A1A18' } },
-      alignment: { vertical:'center', wrapText:true },
-      border: { top:borderSolid, bottom:borderSolid, left:borderSolid, right:borderSolid }
-    };
-  }
-
-  // Borde micropunto en todas las celdas de datos
-  const borderDot = { style:'hair', color:{ rgb:'FFCCCCCC' } };
-  visibleRows.forEach((r, i) => {
-    for (let c = 0; c < 11; c++) {
-      const cellRef = XLSX.utils.encode_cell({r: i+1, c});
-      if (!ws[cellRef]) ws[cellRef] = {v:'', t:'s'};
-      ws[cellRef].s = {
-        ...ws[cellRef].s,
-        border: { top:borderDot, bottom:borderDot, left:borderDot, right:borderDot }
-      };
-    }
+  // Leyenda (siempre): dos filas en blanco después de la tabla
+  const merges = [{ s: { r: 1, c: C0 }, e: { r: 1, c: C0 + NC - 1 } }];
+  const ley0 = 3 + n + 3;
+  D.leyendas.forEach(([clave, texto], i) => {
+    const r = ley0 + i;
+    put(r, C0, '', {
+      fill: { patternType: 'solid', fgColor: { rgb: D.colores[clave] } },
+      font: { name: D.fuente, sz: D.fuenteLeyenda },
+      alignment: { horizontal: 'center' },
+      border: { top: bFino, bottom: bFino, left: bFino, right: bFino }
+    });
+    put(r, C0 + 1, texto, { font: { name: D.fuente, sz: D.fuenteLeyenda }, alignment: { horizontal: 'left' } });
+    merges.push({ s: { r, c: C0 + 1 }, e: { r, c: C0 + 2 } });
+    rows[r] = { hpt: D.altoLeyenda };
   });
+
+  ws['!ref'] = XLSX.utils.encode_range({ s: { r: 0, c: 0 }, e: { r: ley0 + D.leyendas.length - 1, c: C0 + NC - 1 } });
+  ws['!cols'] = [{ width: D.anchoMargen }, ...D.anchos.map(w => ({ width: w }))];
+  ws['!rows'] = rows;
+  ws['!merges'] = merges;
 
   const wb = XLSX.utils.book_new();
   XLSX.utils.book_append_sheet(wb, ws, 'QCC '+ANIO);
